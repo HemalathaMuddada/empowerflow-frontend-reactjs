@@ -1,5 +1,5 @@
 import React from 'react';
-import { BrowserRouter as Router, Routes, Route, Link, Navigate } from 'react-router-dom';
+import { BrowserRouter as Router, Routes, Route, Navigate, Outlet } from 'react-router-dom';
 import ThemeProvider from './contexts/ThemeProvider';
 import Header from './components/layout/Header';
 import Sidebar from './components/layout/Sidebar';
@@ -11,93 +11,109 @@ import PayslipsPage from './pages/employee/PayslipsPage';
 import HolidaysPage from './pages/employee/HolidaysPage';
 import AttendancePage from './pages/employee/AttendancePage';
 import WorkStatusPage from './pages/employee/WorkStatusPage';
-// Added imports for new pages
 import RaiseConcernPage from './pages/employee/RaiseConcernPage';
 import DocumentCenterPage from './pages/employee/DocumentCenterPage';
 import HikeInfoPage from './pages/employee/HikeInfoPage';
 import TaskListPage from './pages/employee/TaskListPage';
 import DeclarationsPage from './pages/employee/DeclarationsPage';
-import { Toaster, toast } from 'sonner';
-import { Button } from './components/ui/button';
-import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogHeader,
-  DialogTitle,
-  DialogTrigger,
-  DialogFooter,
-  DialogClose,
-} from "@/components/ui/dialog"
+import { Toaster } from 'sonner';
 
+import { useAuth } from './contexts/AuthContext';
+import LoginPage from './pages/auth/LoginPage';
+import SignupPage from './pages/auth/SignupPage';
+import ProtectedRoute from './components/auth/ProtectedRoute';
 
-function HomePage() {
+// Import new dashboards
+import LeadDashboard from './pages/lead/LeadDashboard';
+import HrDashboard from './pages/hr/HrDashboard';
+import ManagerDashboard from './pages/manager/ManagerDashboard';
+import SuperAdminDashboard from './pages/admin/SuperAdminDashboard';
+
+// Layout for authenticated users
+const AuthenticatedLayout: React.FC = () => {
   return (
-    <div>
-      <h1 className="text-2xl font-bold mb-4">Welcome to EmpowerFlow</h1>
-      <p className="mb-4">This is a placeholder home page. (You are seeing this if Navigate failed or direct access)</p>
-      <div className="flex space-x-2">
-        <Button onClick={() => toast.success('Event has been created!', { description: 'Monday, January 23, 2023 at 9:00 AM' })}>
-          Show Success Toast
-        </Button>
-        <Button variant="destructive" onClick={() => toast.error('Event has failed!', { description: 'Please try again.'})}>
-          Show Error Toast
-        </Button>
-        <Dialog>
-          <DialogTrigger asChild>
-            <Button variant="outline">Open Modal</Button>
-          </DialogTrigger>
-          <DialogContent className="sm:max-w-[425px]">
-            <DialogHeader>
-              <DialogTitle>Modal Title</DialogTitle>
-              <DialogDescription>
-                This is a sample modal dialog. You can put any content here.
-              </DialogDescription>
-            </DialogHeader>
-            <p>Modal content goes here...</p>
-            <DialogFooter>
-              <DialogClose asChild>
-                <Button type="button" variant="secondary">Close</Button>
-              </DialogClose>
-              <Button type="button">Save changes</Button>
-            </DialogFooter>
-          </DialogContent>
-        </Dialog>
+    <div className="flex flex-col min-h-screen">
+      <Header />
+      <div className="flex flex-1 pt-16"> {/* Add padding-top to account for fixed Header */}
+        <Sidebar />
+        <MainContent>
+          <Outlet /> {/* Nested routes will render here */}
+        </MainContent>
       </div>
+      <Toaster richColors />
     </div>
   );
-}
+};
+
+// Simple component to handle root navigation
+const RootRedirector: React.FC = () => {
+  const { authState } = useAuth();
+
+  if (!authState.isAuthenticated) {
+    return <Navigate to="/login" replace />;
+  }
+
+  // Role-based redirection logic
+  // This can be expanded with more roles
+  switch (authState.userRole) {
+    case 'employee':
+      return <Navigate to="/employee/dashboard" replace />;
+    case 'lead':
+      return <Navigate to="/lead/dashboard" replace />;
+    case 'hr':
+      return <Navigate to="/hr/dashboard" replace />;
+    case 'manager':
+      return <Navigate to="/manager/dashboard" replace />;
+    case 'super_admin':
+      return <Navigate to="/admin/dashboard" replace />;
+    default:
+      // Fallback if role is unknown or not set, though AuthContext should prevent null role when authenticated
+      console.warn('Unknown user role:', authState.userRole);
+      return <Navigate to="/login" replace />; // Or a generic dashboard
+  }
+};
 
 function App() {
   return (
     <ThemeProvider defaultTheme="system" storageKey="vite-ui-theme">
       <Router>
-        <div className="flex flex-col min-h-screen">
-          <Header />
-          <div className="flex flex-1">
-            <Sidebar />
-            <MainContent>
-              <Routes>
-                <Route path="/" element={<Navigate to="/employee/dashboard" replace />} />
-                <Route path="/home" element={<HomePage />} />
-                <Route path="/common-components" element={<CommonComponentsPage />} />
-                <Route path="/employee/dashboard" element={<EmployeeDashboard />} />
-                <Route path="/employee/leave" element={<LeaveManagementPage />} />
-                <Route path="/employee/payslips" element={<PayslipsPage />} />
-                <Route path="/employee/holidays" element={<HolidaysPage />} />
-                <Route path="/employee/attendance" element={<AttendancePage />} />
-                <Route path="/employee/work-status" element={<WorkStatusPage />} />
-                {/* Updated routes for new pages */}
-                <Route path="/employee/concerns" element={<RaiseConcernPage />} />
-                <Route path="/employee/documents" element={<DocumentCenterPage />} />
-                <Route path="/employee/hike-info" element={<HikeInfoPage />} />
-                <Route path="/employee/tasks" element={<TaskListPage />} />
-                <Route path="/employee/declarations" element={<DeclarationsPage />} />
-              </Routes>
-            </MainContent>
-          </div>
-          <Toaster richColors />
-        </div>
+        <Routes>
+          {/* Public routes */}
+          <Route path="/login" element={<LoginPage />} />
+          <Route path="/signup" element={<SignupPage />} />
+
+          {/* Authenticated routes */}
+          <Route element={<ProtectedRoute />}>
+            <Route element={<AuthenticatedLayout />}>
+              <Route path="/" element={<RootRedirector />} />
+              {/* Employee Routes */}
+              <Route path="/employee/dashboard" element={<EmployeeDashboard />} />
+              <Route path="/employee/leave" element={<LeaveManagementPage />} />
+              <Route path="/employee/payslips" element={<PayslipsPage />} />
+              <Route path="/employee/holidays" element={<HolidaysPage />} />
+              <Route path="/employee/attendance" element={<AttendancePage />} />
+              <Route path="/employee/work-status" element={<WorkStatusPage />} />
+              <Route path="/employee/concerns" element={<RaiseConcernPage />} />
+              <Route path="/employee/documents" element={<DocumentCenterPage />} />
+              <Route path="/employee/hike-info" element={<HikeInfoPage />} />
+              <Route path="/employee/tasks" element={<TaskListPage />} />
+              <Route path="/employee/declarations" element={<DeclarationsPage />} />
+
+              {/* Other Role Dashboards */}
+              <Route path="/lead/dashboard" element={<LeadDashboard />} />
+              <Route path="/hr/dashboard" element={<HrDashboard />} />
+              <Route path="/manager/dashboard" element={<ManagerDashboard />} />
+              <Route path="/admin/dashboard" element={<SuperAdminDashboard />} />
+
+              {/* Common components page - can be kept for dev/testing if needed under authenticated route */}
+              <Route path="/common-components" element={<CommonComponentsPage />} />
+            </Route>
+          </Route>
+
+          {/* Fallback for any other path - could be a 404 page */}
+          {/* For now, redirecting to root which will handle auth check */}
+          <Route path="*" element={<Navigate to="/" replace />} />
+        </Routes>
       </Router>
     </ThemeProvider>
   );
